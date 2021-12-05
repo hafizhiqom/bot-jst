@@ -46,7 +46,7 @@ async function classify(data){
         );
         result = predict.dataSync();
         return ArgMax( result );
-        
+      
     }catch(e){
       console.log(e);
     }
