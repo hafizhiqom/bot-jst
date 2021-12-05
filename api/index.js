@@ -2,94 +2,113 @@ var express = require('express');
 var r = express.Router();
 
 // load pre-trained model
-const model = require('./sdk/model.js');
+const model = require('./sdk/model.js'); //prediction
+const cls_model = require('./sdk/cls_model.js'); //classification
 
 // Bot Setting
 const TelegramBot = require('node-telegram-bot-api');
 const token = '5068714499:AAGw6SWSL_Rlar7MdW23DRt9KKDTzqqD4fM'
 const bot = new TelegramBot(token, {polling: true});
 
-
-// bots
-let state = 2;
+state = 0;
+//Main Manu Bot
 bot.onText(/\/start/, (msg) => {    
-    state = 0;
     bot.sendMessage(
         msg.chat.id,
-        `Selamat datang di BOT prediksi Tegangan & Daya menggunakan Deep Neural Network.
-        \nSilahkan pilih menu dibawah ini:\n
-        (/1) Prediksi dengan Input i|r
-        (/2) Batal`
+        `Selamat datang ${msg.chat.first_name} di BOT Klasifikasi Tegangan Menggunakan Deep Neural Network.\n
+        click /predict`
     ); 
-    bot.sendMessage(msg.chat.id, "Pilihan Anda: ");    
+    state = 0;
 });
 
-bot.onText(/\/1/, (msg) => {
+
+bot.onText(/\/predict/, (msg) => {
+    bot.sendMessage(
+        msg.chat.id, 
+        `Masukan nilai i dan r dengan format i|r contohnya 15|17`
+    );
     state = 1;
-    bot.sendMessage(
-        msg.chat.id, 
-        `Masukan nilai i dan r dengan format i|r \n
-        contohnya: 12|36`
-    );   
-});
-
-bot.onText(/\/2/, (msg) => {
-    state = 2;
-    bot.sendMessage(
-        msg.chat.id, 
-        "pilih /start untuk kembali ke menu utama"
-    );   
 });
 
 bot.on('message', (msg) => {
-    const text = msg.text.toString().toLowerCase();
-    console.log(text);
-
     if(state == 1){
-        let dt = text.split('|');
-        bot.sendMessage(
-            msg.chat.id, 
-            `prediksi tegangan dan daya dengan arus (${dt[0]} A) dan resistansi (${dt[1]} Ohm) `
-        );
-
+        s = msg.text.split("|");
+        i = parseFloat(s[0])
+        r = parseFloat(s[1])
+        
         model.predict(
             [
-                parseFloat(dt[0]), // string to float
-                parseFloat(dt[1])
-            ]
-        ).then((jres) => {
-            bot.sendMessage(
-                msg.chat.id, 
-                `nilai v dan p adalah (${jres[0]} volt) dan (${jres[1]} watt)`
-            );
-            bot.sendMessage(
-                msg.chat.id,
-                `<= kembali /2`
-            );
-        });        
-    }
-
-    if(state == 2){
-        bot.sendMessage(
-            msg.chat.id, 
-            "pilih /start untuk ke menu utama"
-        );   
+                i,
+                r
+             ]
+         ).then((jres1)=>{
+            v = parseFloat(jres1[0])
+            p = parseFloat(jres1[1])
+            
+            cls_model.classify([i, r, v, p]).then((jres2)=>{
+                bot.sendMessage(
+                    msg.chat.id,
+                    `nilai v yang diprediksi adalah ${v} volt`
+                 );
+                 bot.sendMessage(
+                     msg.chat.id, 
+                     `nilai p yang diprediksi adalah ${p} watt`   
+                 );   
+                 bot.sendMessage(
+                     msg.chat.id, 
+                     `Klasifikasi Tegangan ${jres2}`
+                  );
+            })
+        })
+    }else{
+        state = 0
     }
 })
 
-
-
 // routers
-r.get('/prediction/:i/:r', function(req, res, next) {    
+r.get('/predict/:i/:r', function(req, res, next) {
     model.predict(
         [
-            parseFloat(req.params.i), // string to float
+            parseFloat(req.params.i),
             parseFloat(req.params.r)
         ]
-    ).then((jres)=>{
+     ).then((jres)=>{
         res.json(jres);
-    })
+     })
 });
 
+// routers
+r.get('/classify/:i/:r', function(req, res, next) {
+    model.predict(
+        [
+            parseFloat(req.params.i),
+            parseFloat(req.params.r)
+        ]
+     ).then((jres)=>{
+        cls_model.classify(
+            [
+                parseFloat(req.params.i),
+                parseFloat(req.params.r),
+                parseFloat(jres[0]),
+                parseFloat(jres[1])
+            ]
+      ).then((jres_)=>{
+            res.json(jres_)
+        })
+    })
+})
 
 module.exports = r;
+
+
+
+
+
+
+
+
+
+
+
+
+
