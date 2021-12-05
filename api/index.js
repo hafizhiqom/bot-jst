@@ -53,11 +53,16 @@ bot.on('message', (msg) => {
                  bot.sendMessage(
                      msg.chat.id, 
                      `Klasifikasi Tegangan ${jres2}`
-                  );
+                 );
+                 state = 0; 
             })
         })
     }else{
-        state = 0
+        bot.sendMessage(
+            msg.chat.id,
+            `Please Click /start`
+        );
+        state = 0;
     }
 })
 
